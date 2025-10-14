@@ -18,7 +18,8 @@ export default function TransferPage() {
     setSuccess(false);
 
     // Validate YouTube URL
-    if (!youtubeUrl.includes("youtube.com/playlist")) {
+    const youtubePlaylistPattern = /^https?:\/\/(www\.)?(youtube\.com\/playlist\?|youtu\.be\/)/;
+    if (!youtubePlaylistPattern.test(youtubeUrl)) {
       setError("Please enter a valid YouTube playlist URL");
       return;
     }

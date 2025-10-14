@@ -1,11 +1,12 @@
 # 🎵 Playlist Tracker
 
-A Progressive Web App (PWA) built with Next.js that helps you transfer playlists from YouTube to Spotify, Apple Music, Amazon Music, and other music platforms.
+A Progressive Web App (PWA) built with Next.js that helps you transfer playlists bidirectionally between YouTube, Spotify, Apple Music, Amazon Music, and other music platforms.
 
 ## Features
 
-- 🎬 **YouTube Integration** - Import playlists from YouTube
-- 🎵 **Multi-Platform Support** - Export to Spotify, Apple Music, Amazon Music
+- 🔄 **Bidirectional Transfer** - Transfer playlists from any platform to any other platform
+- 🎬 **YouTube Integration** - Import/export playlists from/to YouTube
+- 🎵 **Multi-Platform Support** - Works with Spotify, Apple Music, Amazon Music
 - ⚡ **Fast Transfer** - Quick and efficient playlist migration
 - 🔒 **Secure** - Your data is never stored on our servers
 - 📱 **PWA Support** - Install as an app on your device
@@ -74,10 +75,11 @@ playlist_tracker/
 
 ## How It Works
 
-1. **Enter YouTube Playlist URL** - Paste the URL of the YouTube playlist you want to transfer
-2. **Select Platform** - Choose your destination music platform (Spotify, Apple Music, Amazon Music)
-3. **Authenticate** - Connect with your chosen platform (requires API credentials)
-4. **Transfer** - The app will match songs and create your playlist on the selected platform
+1. **Select Source Platform** - Choose where your playlist currently is (YouTube, Spotify, Apple Music, Amazon Music)
+2. **Enter Playlist URL** - Paste the URL of the playlist you want to transfer
+3. **Select Destination Platform** - Choose where you want to transfer the playlist to
+4. **Authenticate** - Connect with both platforms (requires API credentials)
+5. **Transfer** - The app will match songs and create your playlist on the destination platform
 
 ## PWA Features
 
@@ -88,22 +90,21 @@ playlist_tracker/
 
 ## Future Enhancements
 
-- [ ] YouTube API integration for fetching playlist data
-- [ ] Spotify API integration for creating playlists
-- [ ] Apple Music API integration
-- [ ] Amazon Music API integration
+- [ ] YouTube API integration for fetching/creating playlist data
+- [ ] Spotify API integration for fetching/creating playlists
+- [ ] Apple Music API integration for fetching/creating playlists
+- [ ] Amazon Music API integration for fetching/creating playlists
 - [ ] Batch playlist transfers
 - [ ] Playlist editing before transfer
 - [ ] Track matching algorithm improvements
 - [ ] Transfer history and analytics
-- [ ] Reverse transfer (from streaming to YouTube)
 
 ## API Configuration
 
 To fully implement the transfer functionality, you'll need API credentials:
 
-- **YouTube Data API v3**: For fetching playlist information
-- **Spotify Web API**: For creating playlists on Spotify
+- **YouTube Data API v3**: For fetching and creating playlists
+- **Spotify Web API**: For fetching and creating playlists on Spotify
 - **Apple Music API**: For Apple Music integration
 - **Amazon Music API**: For Amazon Music integration
 

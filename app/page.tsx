@@ -8,7 +8,7 @@ export default function Home() {
         <div className="container mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold">🎵 Playlist Tracker</h1>
           <p className="mt-2 text-sm md:text-base opacity-90">
-            Transfer your playlists between YouTube and your favorite music platforms
+            Transfer your playlists between platforms - YouTube, Spotify, Apple Music, and Amazon Music
           </p>
         </div>
       </header>
@@ -22,7 +22,7 @@ export default function Home() {
               Seamlessly Transfer Your Music
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-8">
-              Move your playlists from YouTube to Spotify, Apple Music, Amazon Music, and more with just a few clicks.
+              Transfer playlists between YouTube, Spotify, Apple Music, and Amazon Music in any direction.
             </p>
           </section>
 
@@ -30,17 +30,17 @@ export default function Home() {
           <section className="grid md:grid-cols-2 gap-6 mb-12">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center text-2xl">
-                  🎬
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center text-2xl">
+                  🔄
                 </div>
-                <h3 className="ml-4 text-xl font-semibold">From YouTube</h3>
+                <h3 className="ml-4 text-xl font-semibold">Bidirectional Transfer</h3>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Import your YouTube playlists by providing the playlist URL
+                Transfer playlists from any platform to any other platform
               </p>
               <Link
                 href="/transfer"
-                className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                className="inline-block bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
               >
                 Get Started
               </Link>
@@ -51,12 +51,15 @@ export default function Home() {
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center text-2xl">
                   🎵
                 </div>
-                <h3 className="ml-4 text-xl font-semibold">To Music Platform</h3>
+                <h3 className="ml-4 text-xl font-semibold">Supported Platforms</h3>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Export to Spotify, Apple Music, Amazon Music, and more
+                Works with all major music streaming platforms
               </p>
               <div className="flex flex-wrap gap-2">
+                <span className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  YouTube
+                </span>
                 <span className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-semibold px-3 py-1 rounded-full">
                   Spotify
                 </span>

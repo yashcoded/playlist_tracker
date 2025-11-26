@@ -6,6 +6,23 @@ const withPWA = require('next-pwa')({
 });
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'www.svgrepo.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'svgrepo.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.vectorlogo.zone',
+      },
+    ],
+  },
+};
 
 module.exports = withPWA(nextConfig);

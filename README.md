@@ -6,7 +6,7 @@ A Progressive Web App (PWA) built with Next.js that helps you transfer playlists
 
 - 🔄 **Bidirectional Transfer** - Transfer playlists from any platform to any other platform
 - 🎬 **YouTube Integration** - Import/export playlists from/to YouTube
-- 🎵 **Multi-Platform Support** - Works with Spotify, Apple Music, Amazon Music
+- 🎵 **Multi-Platform Support** - Works with Spotify, Apple Music (Amazon Music coming soon)
 - ⚡ **Fast Transfer** - Quick and efficient playlist migration
 - 🔒 **Secure** - Your data is never stored on our servers
 - 📱 **PWA Support** - Install as an app on your device
@@ -101,22 +101,45 @@ playlist_tracker/
 
 ## API Configuration
 
-To fully implement the transfer functionality, you'll need API credentials:
+### Quick Start (No API Keys Required)
 
-- **YouTube Data API v3**: For fetching and creating playlists
-- **Spotify Web API**: For fetching and creating playlists on Spotify
-- **Apple Music API**: For Apple Music integration
-- **Amazon Music API**: For Amazon Music integration
+The app works out of the box with **mock APIs** for all platforms. You can test all functionality without any API keys!
 
-Add these to your `.env.local` file:
+### Real API Integration (Optional)
 
-```env
-YOUTUBE_API_KEY=your_youtube_api_key
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-APPLE_MUSIC_KEY=your_apple_music_key
-AMAZON_MUSIC_KEY=your_amazon_music_key
-```
+To connect to real music platforms, you'll need API credentials:
+
+- **YouTube Data API v3**: Free with Google account
+- **Spotify Web API**: Free with Spotify Developer account  
+- **Apple Music API**: Requires $99/year Apple Developer account
+- **Amazon Music API**: Not publicly available
+
+### Setup Instructions
+
+1. **Copy environment file**:
+   ```bash
+   cp env.example .env.local
+   ```
+
+2. **Choose your approach**:
+   - **Option A**: Use mock APIs (no setup required)
+   - **Option B**: Set up real APIs (see guides below)
+
+3. **Platform-specific guides**:
+   - **YouTube**: See `YOUTUBE_API_SETUP.md` for step-by-step instructions
+   - **Spotify**: Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   - **Apple Music**: Already configured (if you have Apple Developer account)
+
+### Apple Music API Challenges
+
+**Can't get Apple Developer account?** No problem! Here are alternatives:
+
+1. **Use Mock API**: Full functionality with simulated data
+2. **Manual Transfer**: Copy/paste playlist data
+3. **Third-party Services**: Use existing playlist transfer services
+4. **Student Account**: Free Apple Developer access for students
+
+See `APPLE_MUSIC_API_SETUP.md` for complete details and workarounds.
 
 ## Contributing
 

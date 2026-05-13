@@ -352,7 +352,7 @@ class SongMatcherService {
     try {
       console.log(`🎵 Real Spotify search for: "${query}"`);
       
-      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`;
+      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
       
       const response = await fetch(searchUrl, {
         headers: {

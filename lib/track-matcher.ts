@@ -5,6 +5,8 @@ import { Track } from "./playlist-fetcher";
 type Platform = "youtube" | "spotify" | "apple" | "amazon";
 
 export interface MatchResult {
+  /** Position in the source playlist (0-based). Use for UI updates — duplicate tracks can share the same platform media id. */
+  sourceIndex?: number;
   sourceTrack: Track;
   matchedTrack: Track | null;
   confidence: "high" | "medium" | "low" | "none";
@@ -166,6 +168,21 @@ function matchTrack(
   };
 }
 
+/** Parse Spotify Web API error body (JSON or plain text). */
+function spotifyErrorMessage(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } };
+    const msg = parsed?.error?.message;
+    if (msg && typeof msg === "string") return msg;
+  } catch {
+    /* use raw */
+  }
+  return body.slice(0, 280);
+}
+
+/** Spotify GET /v1/search: `limit` must be between 0 and 10 (inclusive). */
+const SPOTIFY_SEARCH_LIMIT = 10;
+
 /**
  * Search for tracks on a platform
  */
@@ -176,11 +193,9 @@ async function searchTracks(
 ): Promise<Track[]> {
   switch (platform) {
     case "spotify": {
-      // Remove quotes from query for Spotify (it doesn't support quoted phrases well)
-      const cleanQuery = query.replace(/["']/g, "");
-      
+      const cleanQuery = query.trim();
       const response = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=20`,
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=${SPOTIFY_SEARCH_LIMIT}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -190,8 +205,26 @@ async function searchTracks(
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Spotify search error:", response.status, errorText);
-        throw new Error(`Spotify search error: ${response.statusText}`);
+        const detail = spotifyErrorMessage(errorText);
+        console.error("Spotify search error:", response.status, detail);
+
+        if (response.status === 403) {
+          const dashboardHint =
+            "Open https://developer.spotify.com/dashboard → your app → User management, and add the Spotify account you sign in with (Development mode only allows listed users). For public traffic, request Extended Quota.";
+          throw new Error(
+            `Spotify returned 403 (access denied). ${detail}. ${dashboardHint}`
+          );
+        }
+
+        if (response.status === 401) {
+          throw new Error(
+            "Spotify session expired or invalid. Disconnect Spotify in the app and connect again."
+          );
+        }
+
+        throw new Error(
+          `Spotify search failed (${response.status}): ${detail || response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -282,11 +315,12 @@ function buildSearchQuery(track: Track, platform: Platform): string {
 
   // Build query based on platform
   if (platform === "spotify") {
-    // Spotify works better with simple queries
+    // Field filters narrow results and reduce wrong-track noise (Spotify Lucene query syntax)
+    const esc = (s: string) => s.replace(/"/g, " ").replace(/\s+/g, " ").trim();
     if (artist && title) {
-      return `${artist} ${title}`;
+      return `track:"${esc(title)}" artist:"${esc(artist)}"`;
     } else if (title) {
-      return title;
+      return `track:"${esc(title)}"`;
     }
   } else if (platform === "youtube") {
     // YouTube also works better with simple queries
@@ -315,17 +349,20 @@ export async function matchTracks(
 
   for (let i = 0; i < sourceTracks.length; i++) {
     const sourceTrack = sourceTracks[i];
-    
+    const withSourceIndex = (r: MatchResult): MatchResult => ({ ...r, sourceIndex: i });
+
     // Build optimized search query
     const query = buildSearchQuery(sourceTrack, destinationPlatform);
     
     if (!query) {
       console.warn(`Skipping track with no searchable content: ${sourceTrack.title}`);
-      results.push({
-        sourceTrack,
-        matchedTrack: null,
-        confidence: "none",
-      });
+      results.push(
+        withSourceIndex({
+          sourceTrack,
+          matchedTrack: null,
+          confidence: "none",
+        })
+      );
       continue;
     }
 
@@ -342,7 +379,7 @@ export async function matchTracks(
           if (fallbackCandidates.length > 0) {
             // Match the track with fallback results
             const match = matchTrack(sourceTrack, fallbackCandidates, destinationPlatform);
-            results.push(match);
+            results.push(withSourceIndex(match));
             
             if (match.matchedTrack) {
               matchedCount++;
@@ -370,22 +407,26 @@ export async function matchTracks(
                   const match = matchTrack(sourceTrack, filteredCandidates, destinationPlatform);
                   
                   // Include all artist candidates as suggestions
-                  results.push({
-                    ...match,
-                    suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
-                  });
+                  results.push(
+                    withSourceIndex({
+                      ...match,
+                      suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
+                    })
+                  );
                   
                   if (match.matchedTrack) {
                     matchedCount++;
                   }
                 } else {
                   // No good title matches from artist search, but provide suggestions
-                  results.push({
-                    sourceTrack,
-                    matchedTrack: null,
-                    confidence: "none",
-                    suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
-                  });
+                  results.push(
+                    withSourceIndex({
+                      sourceTrack,
+                      matchedTrack: null,
+                      confidence: "none",
+                      suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
+                    })
+                  );
                 }
               } else {
                 // Try even simpler - just the main words from title
@@ -395,22 +436,26 @@ export async function matchTracks(
                   const match = matchTrack(sourceTrack, wordCandidates, destinationPlatform);
                   
                   // Include suggestions even if no match
-                  results.push({
-                    ...match,
-                    suggestions: wordCandidates.slice(0, 5), // Top 5 suggestions
-                  });
+                  results.push(
+                    withSourceIndex({
+                      ...match,
+                      suggestions: wordCandidates.slice(0, 5), // Top 5 suggestions
+                    })
+                  );
                   
                   if (match.matchedTrack) {
                     matchedCount++;
                   }
                 } else {
                   // No candidates found - provide empty result with no suggestions
-                  results.push({
-                    sourceTrack,
-                    matchedTrack: null,
-                    confidence: "none",
-                    suggestions: [],
-                  });
+                  results.push(
+                    withSourceIndex({
+                      sourceTrack,
+                      matchedTrack: null,
+                      confidence: "none",
+                      suggestions: [],
+                    })
+                  );
                 }
               }
             } else {
@@ -421,22 +466,26 @@ export async function matchTracks(
                 const match = matchTrack(sourceTrack, wordCandidates, destinationPlatform);
                 
                 // Include suggestions even if no match
-                results.push({
-                  ...match,
-                  suggestions: wordCandidates.slice(0, 5), // Top 5 suggestions
-                });
+                results.push(
+                  withSourceIndex({
+                    ...match,
+                    suggestions: wordCandidates.slice(0, 5), // Top 5 suggestions
+                  })
+                );
                 
                 if (match.matchedTrack) {
                   matchedCount++;
                 }
               } else {
                 // No candidates found - provide empty result with no suggestions
-                results.push({
-                  sourceTrack,
-                  matchedTrack: null,
-                  confidence: "none",
-                  suggestions: [],
-                });
+                results.push(
+                  withSourceIndex({
+                    sourceTrack,
+                    matchedTrack: null,
+                    confidence: "none",
+                    suggestions: [],
+                  })
+                );
               }
             }
           }
@@ -463,46 +512,54 @@ export async function matchTracks(
                 const match = matchTrack(sourceTrack, filteredCandidates, destinationPlatform);
                 
                 // Include all artist candidates as suggestions
-                results.push({
-                  ...match,
-                  suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
-                });
+                results.push(
+                  withSourceIndex({
+                    ...match,
+                    suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
+                  })
+                );
                 
                 if (match.matchedTrack) {
                   matchedCount++;
                 }
               } else {
                 // No good title matches from artist search, but provide suggestions
-                results.push({
-                  sourceTrack,
-                  matchedTrack: null,
-                  confidence: "none",
-                  suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
-                });
+                results.push(
+                  withSourceIndex({
+                    sourceTrack,
+                    matchedTrack: null,
+                    confidence: "none",
+                    suggestions: artistCandidates.slice(0, 5), // Top 5 suggestions from artist search
+                  })
+                );
               }
             } else {
               // No candidates found - try to get suggestions based on title only
               const titleOnlyQuery = sourceTrack.title.split(/\s+/).slice(0, 5).join(" ");
               const suggestionCandidates = await searchTracks(destinationPlatform, titleOnlyQuery, accessToken);
               
-              results.push({
-                sourceTrack,
-                matchedTrack: null,
-                confidence: "none",
-                suggestions: suggestionCandidates.slice(0, 5), // Top 5 suggestions
-              });
+              results.push(
+                withSourceIndex({
+                  sourceTrack,
+                  matchedTrack: null,
+                  confidence: "none",
+                  suggestions: suggestionCandidates.slice(0, 5), // Top 5 suggestions
+                })
+              );
             }
           } else {
             // No artist available - try to get suggestions based on title only
             const titleOnlyQuery = sourceTrack.title.split(/\s+/).slice(0, 5).join(" ");
             const suggestionCandidates = await searchTracks(destinationPlatform, titleOnlyQuery, accessToken);
             
-            results.push({
-              sourceTrack,
-              matchedTrack: null,
-              confidence: "none",
-              suggestions: suggestionCandidates.slice(0, 5), // Top 5 suggestions
-            });
+            results.push(
+              withSourceIndex({
+                sourceTrack,
+                matchedTrack: null,
+                confidence: "none",
+                suggestions: suggestionCandidates.slice(0, 5), // Top 5 suggestions
+              })
+            );
           }
         }
       } else {
@@ -557,7 +614,7 @@ export async function matchTracks(
           match.suggestions = candidates.slice(0, 5); // Top 5 suggestions
         }
         
-        results.push(match);
+        results.push(withSourceIndex(match));
 
         if (match.matchedTrack) {
           matchedCount++;
@@ -575,6 +632,14 @@ export async function matchTracks(
         await new Promise((resolve) => setTimeout(resolve, 100)); // Reduced from 200ms
       }
     } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("Spotify returned 403") ||
+          error.message.includes("Spotify session expired"))
+      ) {
+        throw error;
+      }
+
       errorCount++;
       console.error(`Error matching track "${sourceTrack.title}":`, error);
       
@@ -583,11 +648,13 @@ export async function matchTracks(
         console.warn(`High error rate: ${errorCount} errors out of ${i + 1} tracks processed`);
       }
       
-      results.push({
-        sourceTrack,
-        matchedTrack: null,
-        confidence: "none",
-      });
+      results.push(
+        withSourceIndex({
+          sourceTrack,
+          matchedTrack: null,
+          confidence: "none",
+        })
+      );
     }
   }
 

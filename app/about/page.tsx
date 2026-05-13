@@ -4,10 +4,10 @@ import { YouTubeLogo, SpotifyLogo, AppleMusicLogo, AmazonMusicLogo } from "../co
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-pink-50 to-purple-50 dark:from-slate-950 dark:via-purple-950 dark:to-pink-950">
-      {/* Animated Gradient Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/40 via-pink-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute top-60 -left-40 w-96 h-96 bg-gradient-to-br from-pink-300/40 via-cyan-300/40 to-orange-300/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      {/* Static gradient wash — lighter than animated blur orbs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/35 via-pink-300/35 to-purple-300/35 rounded-full blur-2xl" />
+        <div className="absolute top-60 -left-40 w-80 h-80 bg-gradient-to-br from-pink-300/35 via-cyan-300/35 to-orange-300/30 rounded-full blur-2xl" />
       </div>
 
       {/* Main Content */}
@@ -24,7 +24,7 @@ export default function AboutPage() {
           </div>
 
           {/* What is it */}
-          <section className="mb-16 backdrop-blur-xl bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
+          <section className="mb-16 backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
               What is Playlist Transfer?
             </h2>
@@ -41,7 +41,7 @@ export default function AboutPage() {
           </section>
 
           {/* Supported Platforms */}
-          <section className="mb-16 backdrop-blur-xl bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
+          <section className="mb-16 backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
               Supported Platforms
             </h2>
@@ -77,7 +77,7 @@ export default function AboutPage() {
           </section>
 
           {/* Features */}
-          <section className="mb-16 backdrop-blur-xl bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
+          <section className="mb-16 backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
               Key Features
             </h2>
@@ -110,7 +110,7 @@ export default function AboutPage() {
           </section>
 
           {/* About the Developer */}
-          <section className="mb-16 backdrop-blur-xl bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
+          <section className="mb-16 backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
               About the Developer
             </h2>
@@ -157,7 +157,7 @@ export default function AboutPage() {
           </section>
 
           {/* Technology Stack */}
-          <section className="mb-16 backdrop-blur-xl bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
+          <section className="mb-16 backdrop-blur-md bg-white/60 dark:bg-gray-900/60 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-800/50">
             <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
               Technology Stack
             </h2>

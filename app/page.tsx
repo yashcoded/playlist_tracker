@@ -4,11 +4,10 @@ import { YouTubeLogo, SpotifyLogo, AppleMusicLogo, AmazonMusicLogo } from "../ap
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-pink-50 to-purple-50 dark:from-slate-950 dark:via-purple-950 dark:to-pink-950">
-      {/* Animated Gradient Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/40 via-pink-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute top-60 -left-40 w-96 h-96 bg-gradient-to-br from-pink-300/40 via-cyan-300/40 to-orange-300/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-20 right-1/4 w-72 h-72 bg-gradient-to-br from-purple-300/30 via-cyan-300/30 to-pink-300/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Static gradient wash — avoids continuous repaints on weak devices */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/35 via-pink-300/35 to-purple-300/35 rounded-full blur-2xl" />
+        <div className="absolute top-60 -left-40 w-80 h-80 bg-gradient-to-br from-pink-300/35 via-cyan-300/35 to-orange-300/30 rounded-full blur-2xl" />
       </div>
 
       {/* Main Content */}
@@ -30,11 +29,11 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/transfer"
-                className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-500 hover:from-cyan-500 hover:via-pink-500 hover:to-purple-600 text-white font-bold rounded-2xl shadow-2xl shadow-pink-400/60 hover:shadow-2xl hover:shadow-cyan-400/60 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 text-lg"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-500 hover:from-cyan-500 hover:via-pink-500 hover:to-purple-600 text-white font-bold rounded-2xl shadow-2xl shadow-pink-400/60 hover:shadow-xl hover:shadow-cyan-400/50 transition-shadow duration-200 text-lg"
               >
                 <span>🚀 Get Started</span>
               </Link>
-              <button className="inline-flex items-center gap-3 px-8 py-4 bg-white/90 dark:bg-gray-800/80 backdrop-blur-xl border-2 border-cyan-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-pink-400 text-gray-700 dark:text-gray-200 font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 text-lg">
+              <button className="inline-flex items-center gap-3 px-8 py-4 bg-white/90 dark:bg-gray-800/80 backdrop-blur-md border-2 border-cyan-200 dark:border-gray-700 hover:border-cyan-400 dark:hover:border-pink-400 text-gray-700 dark:text-gray-200 font-bold rounded-2xl shadow-xl hover:shadow-lg transition-shadow duration-200 text-lg">
                 <span>📖 Watch Demo</span>
               </button>
             </div>
@@ -54,13 +53,13 @@ export default function Home() {
               ].map((platform) => (
                 <div
                   key={platform.name}
-                  className={`group relative backdrop-blur-xl border rounded-2xl p-6 transition-all duration-300 shadow-lg ${
+                  className={`group relative backdrop-blur-md border rounded-2xl p-6 transition-shadow duration-200 shadow-lg ${
                     !platform.available
                       ? "bg-gray-100/60 dark:bg-gray-900/60 border-gray-300/50 dark:border-gray-700/50 opacity-75"
-                      : "bg-white/60 dark:bg-gray-800/60 border-gray-200/50 dark:border-gray-700/50 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:border-purple-500/50 transform hover:scale-105 hover:-translate-y-2 cursor-pointer hover:shadow-2xl"
+                      : "bg-white/60 dark:bg-gray-800/60 border-gray-200/50 dark:border-gray-700/50 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:border-purple-500/50 cursor-pointer hover:shadow-xl"
                   }`}
                 >
-                  <div className="flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+                  <div className="flex items-center justify-center mb-3 transition-opacity duration-200 group-hover:opacity-90">
                     <platform.component />
                   </div>
                   <h4 className="text-center font-semibold text-gray-800 dark:text-gray-200 text-sm">
@@ -120,9 +119,9 @@ export default function Home() {
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group relative backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 rounded-3xl p-8 hover:border-transparent hover:bg-gradient-to-br hover:from-white/90 hover:to-white/70 dark:hover:from-gray-800/90 dark:hover:to-gray-800/70 transition-all duration-500 transform hover:scale-105 hover:-translate-y-2 shadow-xl hover:shadow-2xl"
+                className="group relative backdrop-blur-md bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 rounded-3xl p-8 hover:border-purple-400/40 dark:hover:border-purple-500/30 transition-shadow duration-200 shadow-xl hover:shadow-2xl"
               >
-                <div className={`w-16 h-16 mb-4 rounded-2xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center text-3xl transform group-hover:rotate-6 transition-transform duration-300 shadow-lg`}>
+                <div className={`w-16 h-16 mb-4 rounded-2xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center text-3xl shadow-lg`}>
                   {feature.icon}
                 </div>
                 <h4 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
@@ -136,7 +135,7 @@ export default function Home() {
           </section>
 
           {/* CTA Section */}
-          <section className="relative backdrop-blur-xl bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 shadow-2xl shadow-purple-500/50 overflow-hidden">
+          <section className="relative backdrop-blur-md bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 shadow-2xl shadow-purple-500/40 overflow-hidden">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xMDUiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjMwIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-10" />
             <div className="relative text-center">
               <h3 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
@@ -148,7 +147,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link
                   href="/transfer"
-                  className="inline-flex items-center gap-3 px-10 py-5 bg-white hover:bg-gray-50 text-purple-600 font-bold rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-3xl text-lg"
+                  className="inline-flex items-center gap-3 px-10 py-5 bg-white hover:bg-gray-50 text-purple-600 font-bold rounded-2xl shadow-2xl transition-shadow duration-200 text-lg"
                 >
                   <span>Start Free Transfer</span>
                   <span className="text-2xl">🚀</span>

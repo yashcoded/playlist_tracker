@@ -593,11 +593,10 @@ export default function TransferPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-pink-50 to-purple-50 dark:from-slate-950 dark:via-purple-950 dark:to-pink-950">
-      {/* Animated Gradient Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/40 via-pink-300/40 to-purple-300/40 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute top-60 -left-40 w-96 h-96 bg-gradient-to-br from-pink-300/40 via-cyan-300/40 to-orange-300/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-20 right-1/4 w-72 h-72 bg-gradient-to-br from-purple-300/30 via-cyan-300/30 to-pink-300/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* Static gradient wash (no infinite pulse — large blur + pulse is heavy on low-end GPUs) */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-cyan-300/35 via-pink-300/35 to-purple-300/35 rounded-full blur-2xl" />
+        <div className="absolute top-60 -left-40 w-80 h-80 bg-gradient-to-br from-pink-300/35 via-cyan-300/35 to-orange-300/30 rounded-full blur-2xl" />
       </div>
 
 
@@ -636,7 +635,7 @@ export default function TransferPage() {
             </div>
           </div>
 
-          <div className="backdrop-blur-xl bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-12">
+          <div className="backdrop-blur-md bg-white/60 dark:bg-gray-800/60 border border-gray-200/50 dark:border-gray-700/50 rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-12">
             <div className="mb-8 lg:mb-12">
               <h2 className="text-3xl lg:text-4xl font-extrabold mb-2 bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
               Transfer Your Playlist
@@ -668,17 +667,17 @@ export default function TransferPage() {
                         }
                       }}
                       disabled={isProcessing || !platform.available}
-                        className={`group relative p-4 sm:p-6 lg:p-8 rounded-2xl border-2 transition-all duration-300 ${
+                        className={`group relative p-4 sm:p-6 lg:p-8 rounded-2xl border-2 transition-shadow duration-200 ${
                           !platform.available 
                             ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-                            : `transform hover:scale-105 hover:-translate-y-1 ${
+                            : `${
                               sourcePlatform === platform.id
                                 ? `bg-gradient-to-br ${platform.gradient} border-transparent shadow-2xl text-white`
-                                : "bg-white/60 dark:bg-gray-800/60 border-gray-300/50 dark:border-gray-700/50 hover:border-purple-500/50 text-gray-700 dark:text-gray-300"
+                                : "bg-white/60 dark:bg-gray-800/60 border-gray-300/50 dark:border-gray-700/50 hover:border-purple-500/50 hover:shadow-lg text-gray-700 dark:text-gray-300"
                             }`
-                        } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        <div className={`mb-3 transition-transform duration-300 flex items-center justify-center ${sourcePlatform === platform.id ? "scale-110" : "group-hover:scale-110"}`}>
+                        <div className={`mb-3 flex items-center justify-center ${sourcePlatform === platform.id ? "scale-105" : ""}`}>
                           <LogoComponent />
                         </div>
                         <div className={`font-bold text-sm ${sourcePlatform === platform.id ? "text-white" : ""}`}>
@@ -714,7 +713,7 @@ export default function TransferPage() {
                   value={playlistUrl}
                   onChange={(e) => setPlaylistUrl(e.target.value)}
                   placeholder={getPlaceholderUrl(sourcePlatform)}
-                    className="w-full px-6 lg:px-8 py-4 lg:py-5 text-base lg:text-lg rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all duration-300 text-gray-900 dark:text-gray-100"
+                    className="w-full px-6 lg:px-8 py-4 lg:py-5 text-base lg:text-lg rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors duration-200 text-gray-900 dark:text-gray-100"
                   disabled={isProcessing || !sourcePlatform}
                 />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -745,21 +744,21 @@ export default function TransferPage() {
                         setDestinationPlatform(platform.id as Platform);
                       }}
                         disabled={isProcessing || sourcePlatform === platform.id || !sourcePlatform || !platform.available}
-                        className={`group relative p-4 sm:p-6 lg:p-8 rounded-2xl border-2 transition-all duration-300 ${
+                        className={`group relative p-4 sm:p-6 lg:p-8 rounded-2xl border-2 transition-shadow duration-200 ${
                           !platform.available
                             ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-                            : `transform hover:scale-105 hover:-translate-y-1 ${
+                            : `${
                               destinationPlatform === platform.id
                                 ? `bg-gradient-to-br ${platform.gradient} border-transparent shadow-2xl text-white`
                                 : sourcePlatform === platform.id
                                 ? "bg-gray-100 dark:bg-gray-900 border-gray-400 dark:border-gray-600 opacity-40 cursor-not-allowed text-gray-400"
                                 : !sourcePlatform
                                 ? "bg-gray-100 dark:bg-gray-900 border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed text-gray-400"
-                                : "bg-white/60 dark:bg-gray-800/60 border-gray-300/50 dark:border-gray-700/50 hover:border-purple-500/50 text-gray-700 dark:text-gray-300"
+                                : "bg-white/60 dark:bg-gray-800/60 border-gray-300/50 dark:border-gray-700/50 hover:border-purple-500/50 hover:shadow-lg text-gray-700 dark:text-gray-300"
                             }`
-                        } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        <div className={`mb-3 transition-transform duration-300 flex items-center justify-center ${destinationPlatform === platform.id ? "scale-110" : "group-hover:scale-110"}`}>
+                        <div className={`mb-3 flex items-center justify-center ${destinationPlatform === platform.id ? "scale-105" : ""}`}>
                           <LogoComponent />
                         </div>
                         <div className={`font-bold text-sm ${destinationPlatform === platform.id ? "text-white" : ""}`}>
@@ -785,7 +784,7 @@ export default function TransferPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="backdrop-blur-xl bg-red-50/90 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-2xl p-6 shadow-lg">
+                <div className="backdrop-blur-md bg-red-50/90 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-2xl p-6 shadow-lg">
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">⚠️</span>
                     <div>
@@ -893,36 +892,63 @@ export default function TransferPage() {
                       AudioPreview={AudioPreview as any}
                       similarity={similarity}
                       normalizeText={normalizeText}
-                      onTrackReplaced={(originalTrack, newTrack) => {
+                      onTrackReplaced={(originalTrack, newTrack, sourceIndex) => {
                         console.log(`🔄 Track replaced: ${originalTrack.title} -> ${newTrack.title}`);
-                        
-                        // Find the correct original index in the full matchResults array
-                        const originalIndex = matchResults?.findIndex(m => m.sourceTrack.id === originalTrack.id) ?? -1;
-                        
+
+                        const originalIndex =
+                          sourceIndex !== undefined
+                            ? sourceIndex
+                            : (matchResults?.findIndex(
+                                (m) => m.sourceTrack.id === originalTrack.id
+                              ) ?? -1);
+
                         if (originalIndex === -1) {
-                          console.error(`❌ Could not find original track ${originalTrack.title} in matchResults`);
+                          console.error(
+                            `❌ Could not resolve row for ${originalTrack.title} (sourceIndex=${sourceIndex})`
+                          );
                           return;
                         }
-                        
-                        console.log(`📝 Found original track at index ${originalIndex}, updating userSelections`);
-                        
+
+                        console.log(
+                          `📝 Updating match at sourceIndex ${originalIndex}, updating userSelections`
+                        );
+
                         // Update userSelections with the correct index
-                        setUserSelections(prevSelections => {
+                        setUserSelections((prevSelections) => {
                           const newSelections = new Map(prevSelections);
                           newSelections.set(originalIndex, newTrack);
-                          console.log(`✅ Updated userSelections for index ${originalIndex}:`, newTrack.title);
-                          console.log(`🗺️ Current userSelections:`, Array.from(newSelections.entries()).map(([idx, track]) => `${idx}: ${track.title}`));
+                          console.log(
+                            `✅ Updated userSelections for index ${originalIndex}:`,
+                            newTrack.title
+                          );
+                          console.log(
+                            `🗺️ Current userSelections:`,
+                            Array.from(newSelections.entries()).map(
+                              ([idx, track]) => `${idx}: ${track.title}`
+                            )
+                          );
                           return newSelections;
                         });
-                        
+
                         // Update the match results with the new track (for UI display)
-                        setMatchResults(prev => 
-                          prev ? prev.map((match, index) => {
-                            if (match.sourceTrack.id === originalTrack.id) {
-                              return { ...match, matchedTrack: newTrack, confidence: 'high' as const, matchReason: 'User selected' };
-                            }
-                            return match;
-                          }) : null
+                        setMatchResults((prev) =>
+                          prev
+                            ? prev.map((match) => {
+                                const sameRow =
+                                  sourceIndex !== undefined
+                                    ? match.sourceIndex === sourceIndex
+                                    : match.sourceTrack.id === originalTrack.id;
+                                if (sameRow) {
+                                  return {
+                                    ...match,
+                                    matchedTrack: newTrack,
+                                    confidence: "high" as const,
+                                    matchReason: "User selected",
+                                  };
+                                }
+                                return match;
+                              })
+                            : null
                         );
                       }}
                     />
@@ -934,7 +960,7 @@ export default function TransferPage() {
               <button
                 type="submit"
                 disabled={isProcessing || !sourcePlatform || !destinationPlatform || !playlistUrl}
-                className="w-full group relative px-8 lg:px-12 py-5 lg:py-6 bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-500 hover:from-cyan-500 hover:via-pink-500 hover:to-purple-600 text-white font-bold rounded-2xl shadow-2xl shadow-pink-400/60 hover:shadow-3xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg lg:text-xl overflow-hidden"
+                className="w-full group relative px-8 lg:px-12 py-5 lg:py-6 bg-gradient-to-r from-cyan-400 via-pink-400 to-purple-500 hover:from-cyan-500 hover:via-pink-500 hover:to-purple-600 text-white font-bold rounded-2xl shadow-2xl shadow-pink-400/60 hover:shadow-xl transition-shadow duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-lg lg:text-xl overflow-hidden"
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
                   {isProcessing ? (

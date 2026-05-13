@@ -13,6 +13,27 @@ export interface CreatedPlaylist {
   trackCount: number;
 }
 
+async function spotifyErrorDetail(response: Response): Promise<string> {
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text) as { error?: { message?: string } | string };
+    if (typeof data?.error === "object" && data.error?.message) return data.error.message;
+    if (typeof data?.error === "string") return data.error;
+  } catch {
+    /* use raw */
+  }
+  const trimmed = text.trim().slice(0, 400);
+  if (trimmed) return trimmed;
+  const scopeHint = response.headers.get("www-authenticate") || "";
+  return [response.statusText, scopeHint].filter(Boolean).join(" ");
+}
+
+/** Spotify track IDs are typically 22 base62 characters. */
+function isLikelySpotifyTrackId(id: string | undefined): boolean {
+  if (!id || typeof id !== "string") return false;
+  return /^[0-9A-Za-z]{22}$/.test(id);
+}
+
 /**
  * Create a playlist on Spotify
  */
@@ -20,27 +41,23 @@ async function createSpotifyPlaylist(
   name: string,
   description: string | undefined,
   tracks: Track[],
-  accessToken: string,
-  userId?: string
+  accessToken: string
 ): Promise<CreatedPlaylist> {
-  // Get user ID if not provided
-  if (!userId) {
-    const userResponse = await fetch("https://api.spotify.com/v1/me", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+  const meResponse = await fetch("https://api.spotify.com/v1/me", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-    if (!userResponse.ok) {
-      throw new Error(`Spotify API error: ${userResponse.statusText}`);
-    }
-
-    const userData = await userResponse.json();
-    userId = userData.id;
+  if (!meResponse.ok) {
+    const detail = await spotifyErrorDetail(meResponse);
+    throw new Error(
+      `Spotify profile request failed (${meResponse.status}): ${detail}. Try disconnecting and reconnecting Spotify.`
+    );
   }
 
-  // Create playlist
-  const createResponse = await fetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+  // Current API: create for the authenticated user (avoid legacy /users/{id}/playlists issues)
+  const createResponse = await fetch("https://api.spotify.com/v1/me/playlists", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -54,20 +71,44 @@ async function createSpotifyPlaylist(
   });
 
   if (!createResponse.ok) {
-    throw new Error(`Spotify API error: ${createResponse.statusText}`);
+    const detail = await spotifyErrorDetail(createResponse);
+    throw new Error(
+      `Spotify could not create playlist (${createResponse.status}): ${detail}. Ensure your app requests playlist-modify-public and playlist-modify-private, then reconnect Spotify.`
+    );
   }
 
   const playlist = await createResponse.json();
 
-  // Add tracks to playlist (Spotify allows up to 100 tracks per request)
-  const trackUris = tracks.map((track) => `spotify:track:${track.id}`).filter(Boolean);
-  
-  if (trackUris.length > 0) {
-    let addedCount = 0;
-    // Split into chunks of 100
-    for (let i = 0; i < trackUris.length; i += 100) {
-      const chunk = trackUris.slice(i, i + 100);
-      const addResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+  // Build URIs only for real Spotify track IDs (wrong IDs often cause API failures)
+  const trackUris: string[] = [];
+  const seen = new Set<string>();
+  for (const track of tracks) {
+    if (!isLikelySpotifyTrackId(track.id)) continue;
+    const uri = `spotify:track:${track.id}`;
+    if (seen.has(uri)) continue;
+    seen.add(uri);
+    trackUris.push(uri);
+  }
+
+  if (trackUris.length === 0) {
+    throw new Error(
+      "No tracks have valid Spotify track IDs to add. Pick matches from Spotify search or reconnect and try again."
+    );
+  }
+
+  if (trackUris.length < tracks.length) {
+    console.warn(
+      `Spotify playlist: skipped ${tracks.length - trackUris.length} tracks with invalid or duplicate Spotify IDs`
+    );
+  }
+
+  // Add tracks (max 100 per request). Use /items — /tracks is deprecated and may fail for some apps.
+  let addedCount = 0;
+  for (let i = 0; i < trackUris.length; i += 100) {
+    const chunk = trackUris.slice(i, i + 100);
+    const addResponse = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlist.id}/items`,
+      {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -76,23 +117,29 @@ async function createSpotifyPlaylist(
         body: JSON.stringify({
           uris: chunk,
         }),
-      });
-
-      if (!addResponse.ok) {
-        const errorText = await addResponse.text();
-        console.error("Spotify add tracks error:", errorText);
-        throw new Error(`Spotify API error: ${addResponse.statusText}`);
       }
-      addedCount += chunk.length;
+    );
+
+    if (!addResponse.ok) {
+      const detail = await spotifyErrorDetail(addResponse);
+      const hint403 =
+        addResponse.status === 403
+          ? " Reconnect Spotify so the token includes playlist-modify-public and playlist-modify-private. If the app is in Development mode, add your Spotify user under User management in developer.spotify.com/dashboard."
+          : "";
+      console.error("Spotify add tracks error:", detail);
+      throw new Error(
+        `Spotify could not add tracks to the playlist (${addResponse.status}): ${detail}.${hint403}`
+      );
     }
-    console.log(`Spotify playlist created: ${addedCount} tracks added`);
+    addedCount += chunk.length;
   }
+  console.log(`Spotify playlist created: ${addedCount} tracks added`);
 
   return {
     id: playlist.id,
     name: playlist.name,
     url: playlist.external_urls.spotify,
-    trackCount: tracks.length,
+    trackCount: addedCount,
   };
 }
 

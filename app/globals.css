@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
-/* Smooth scrolling for better UX */
+/* Smooth scrolling for better UX (skip when user prefers reduced motion) */
 html {
   scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-in,
+  .slide-in-from-top-2 {
+    animation: none !important;
+  }
+  /* Tailwind pulse is expensive on large blurred layers if reintroduced */
+  .animate-pulse {
+    animation: none !important;
+  }
 }
 
 /* Prevent horizontal overflow */
@@ -14,7 +28,7 @@ body {
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -25,7 +39,7 @@ body {
 @keyframes slideInFromTop {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -33,13 +47,13 @@ body {
   }
 }
 
-/* Add slide-in animation utility */
+/* Add slide-in animation utility (short — less work per frame on low-end devices) */
 .animate-in {
-  animation: slideInFromTop 0.3s ease-out;
+  animation: slideInFromTop 0.18s ease-out;
 }
 
 .slide-in-from-top-2 {
-  animation: slideInFromTop 0.3s ease-out;
+  animation: slideInFromTop 0.18s ease-out;
 }
 
 @theme {
@@ -100,11 +114,6 @@ body {
   100% {
     background-position: 1000px 0;
   }
-}
-
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
 }
 
 /* Custom scrollbar */

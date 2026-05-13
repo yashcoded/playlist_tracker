@@ -8,6 +8,22 @@ import PlatformSearchChatbot from "./PlatformSearchChatbot";
 
 type Platform = "youtube" | "spotify" | "apple" | "amazon";
 
+/** Search hits + suggestion fallbacks, minus the track currently shown. */
+function dedupedAlternatives(match: MatchResult, chosen: Track | null, max = 10): Track[] {
+  const raw = [...(match.allCandidates ?? []), ...(match.suggestions ?? [])];
+  const seen = new Set<string>();
+  const out: Track[] = [];
+  for (const t of raw) {
+    const key = `${t.platform}:${t.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (chosen && t.id === chosen.id) continue;
+    out.push(t);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 interface MatchResultsSectionsProps {
   matchResults: MatchResult[];
   sourcePlatform: string;
@@ -16,7 +32,7 @@ interface MatchResultsSectionsProps {
   AudioPreview: React.ComponentType<{ track: Track; platform: Platform; accessToken?: string }>;
   similarity: (str1: string, str2: string) => number;
   normalizeText: (text: string) => string;
-  onTrackReplaced?: (originalTrack: Track, newTrack: Track) => void;
+  onTrackReplaced?: (originalTrack: Track, newTrack: Track, sourceIndex?: number) => void;
 }
 
 export default function MatchResultsSections({
@@ -40,8 +56,12 @@ export default function MatchResultsSections({
   const [searchChatbot, setSearchChatbot] = useState<{
     isOpen: boolean;
     originalTrack: Track | null;
+    sourceIndex?: number;
   }>({ isOpen: false, originalTrack: null });
   const [selectedTracks, setSelectedTracks] = useState<Map<string, Track>>(new Map());
+
+  const selectionRowKey = (m: MatchResult) =>
+    m.sourceIndex !== undefined ? `idx:${m.sourceIndex}` : `id:${m.sourceTrack.id}`;
 
   const handleFilterClick = (section: string) => {
     // If clicking the same section, toggle it off (show all)
@@ -49,22 +69,24 @@ export default function MatchResultsSections({
     setSelectedFilter(prev => prev === section ? null : section);
   };
 
-  const handleTrackReplaced = (originalTrack: Track, newTrack: Track) => {
-    // Update the selected tracks map to highlight the replacement
+  const handleTrackReplaced = (originalTrack: Track, newTrack: Track, sourceIndex?: number) => {
+    const rowKey =
+      sourceIndex !== undefined ? `idx:${sourceIndex}` : `id:${originalTrack.id}`;
     setSelectedTracks(prev => {
       const newMap = new Map(prev);
-      newMap.set(originalTrack.id, newTrack);
+      newMap.set(rowKey, newTrack);
       return newMap;
     });
-    
+
     if (onTrackReplaced) {
-      onTrackReplaced(originalTrack, newTrack);
+      onTrackReplaced(originalTrack, newTrack, sourceIndex);
     }
-    setSearchChatbot({ isOpen: false, originalTrack: null });
-    
+    setSearchChatbot({ isOpen: false, originalTrack: null, sourceIndex: undefined });
+
     // Scroll to the original track to show the replacement
     setTimeout(() => {
-      const element = document.getElementById(`track-${originalTrack.id}`);
+      const anchorId = `track-row-${sourceIndex ?? originalTrack.id}`;
+      const element = document.getElementById(anchorId);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -72,15 +94,16 @@ export default function MatchResultsSections({
   };
 
   const renderMatchCard = (match: MatchResult, index: number) => {
-    const replacedTrack = selectedTracks.get(match.sourceTrack.id);
+    const replacedTrack = selectedTracks.get(selectionRowKey(match));
     const displayTrack = replacedTrack || match.matchedTrack;
     const isReplaced = !!replacedTrack;
-    
+    const rowKey = match.sourceIndex ?? `fallback-${index}`;
+
     return (
       <div
-        key={index}
-        id={`track-${match.sourceTrack.id}`}
-        className={`p-4 rounded-lg border transition-all duration-200 ${
+        key={rowKey}
+        id={`track-row-${match.sourceIndex ?? match.sourceTrack.id}`}
+        className={`p-4 rounded-lg border transition-colors duration-200 ${
           isReplaced
             ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 ring-2 ring-purple-200 dark:ring-purple-800'
             : match.confidence === 'high' 
@@ -156,10 +179,10 @@ export default function MatchResultsSections({
                         )}
                         <button
                           onClick={() => {
-                            console.log(`🎯 Opening search chatbot for destination platform: ${destinationPlatform}`);
-                            setSearchChatbot({ 
-                              isOpen: true, 
-                              originalTrack: match.sourceTrack 
+                            setSearchChatbot({
+                              isOpen: true,
+                              originalTrack: match.sourceTrack,
+                              sourceIndex: match.sourceIndex,
                             });
                           }}
                           className="px-2 sm:px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors whitespace-nowrap flex-shrink-0"
@@ -186,6 +209,50 @@ export default function MatchResultsSections({
                 </div>
               </>
             )}
+            {(() => {
+              const alts = dedupedAlternatives(match, displayTrack ?? null);
+              if (alts.length === 0) return null;
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                    Other matches — choose one if the top result is wrong
+                  </p>
+                  <ul className="space-y-2">
+                    {alts.map((alt) => (
+                      <li key={`${alt.platform}:${alt.id}`}>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 px-3 py-2 text-left hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors"
+                          onClick={() =>
+                            handleTrackReplaced(
+                              match.sourceTrack,
+                              alt,
+                              match.sourceIndex
+                            )
+                          }
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {alt.title}
+                            </span>
+                            <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {alt.artist || "Unknown Artist"}
+                            </span>
+                          </span>
+                          {destinationPlatform && (
+                            <AudioPreview
+                              track={alt}
+                              platform={destinationPlatform as Platform}
+                              accessToken={getToken(destinationPlatform)?.accessToken}
+                            />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
             {match.matchReason && (
               <p className="text-xs lg:text-sm text-gray-500 dark:text-gray-500 mt-1 italic">
                 {match.matchReason}
@@ -334,14 +401,15 @@ export default function MatchResultsSections({
             </div>
             <div className="p-4 space-y-3">
               {noMatches.map((match, index) => {
-                const replacedTrack = selectedTracks.get(match.sourceTrack.id);
+                const replacedTrack = selectedTracks.get(selectionRowKey(match));
                 const isReplaced = !!replacedTrack;
-                
+                const rowKey = match.sourceIndex ?? `fallback-${index}`;
+
                 return (
-                  <div 
-                    key={index} 
-                    id={`track-${match.sourceTrack.id}`}
-                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                  <div
+                    key={rowKey}
+                    id={`track-row-${match.sourceIndex ?? match.sourceTrack.id}`}
+                    className={`p-4 rounded-lg border-2 transition-colors duration-200 ${
                       isReplaced
                         ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-200 dark:ring-purple-800'
                         : 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20'
@@ -356,6 +424,49 @@ export default function MatchResultsSections({
                       </p>
                     </div>
                     
+                    {!isReplaced &&
+                      match.suggestions &&
+                      match.suggestions.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                            Suggested matches — tap one to use it
+                          </p>
+                          <ul className="space-y-2">
+                            {dedupedAlternatives(match, null).map((alt) => (
+                              <li key={`${alt.platform}:${alt.id}`}>
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-left hover:border-purple-400 dark:hover:border-purple-500 transition-colors"
+                                  onClick={() =>
+                                    handleTrackReplaced(
+                                      match.sourceTrack,
+                                      alt,
+                                      match.sourceIndex
+                                    )
+                                  }
+                                >
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                                      {alt.title}
+                                    </span>
+                                    <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
+                                      {alt.artist || "Unknown Artist"}
+                                    </span>
+                                  </span>
+                                  {destinationPlatform && (
+                                    <AudioPreview
+                                      track={alt}
+                                      platform={destinationPlatform as Platform}
+                                      accessToken={getToken(destinationPlatform)?.accessToken}
+                                    />
+                                  )}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
                     {/* Show replaced track if available */}
                     {isReplaced && replacedTrack && (
                       <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700">
@@ -410,9 +521,10 @@ export default function MatchResultsSections({
                         )}
                         <button
                           onClick={() => {
-                            setSearchChatbot({ 
-                              isOpen: true, 
-                              originalTrack: match.sourceTrack 
+                            setSearchChatbot({
+                              isOpen: true,
+                              originalTrack: match.sourceTrack,
+                              sourceIndex: match.sourceIndex,
                             });
                           }}
                           className="px-2 sm:px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex-shrink-0"
@@ -437,11 +549,20 @@ export default function MatchResultsSections({
       {searchChatbot.originalTrack && (
         <PlatformSearchChatbot
           isOpen={searchChatbot.isOpen}
-          onClose={() => setSearchChatbot({ isOpen: false, originalTrack: null })}
+          onClose={() =>
+            setSearchChatbot({ isOpen: false, originalTrack: null, sourceIndex: undefined })
+          }
           originalTrack={searchChatbot.originalTrack}
+          rowContextKey={searchChatbot.sourceIndex}
           platform={destinationPlatform as Platform}
           accessToken={getToken(destinationPlatform)?.accessToken}
-          onTrackSelected={(newTrack) => handleTrackReplaced(searchChatbot.originalTrack!, newTrack)}
+          onTrackSelected={(newTrack) =>
+            handleTrackReplaced(
+              searchChatbot.originalTrack!,
+              newTrack,
+              searchChatbot.sourceIndex
+            )
+          }
         />
       )}
     </>

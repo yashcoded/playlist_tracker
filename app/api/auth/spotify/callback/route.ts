@@ -1,26 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+function isDevLocalHostname(host: string) {
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+/** Prevent open redirects: only allow state origin if it matches safe rules vs this request. */
+function allowedSpotifyReturnOrigin(origin: string, requestOrigin: string): boolean {
+  try {
+    const o = new URL(origin);
+    const req = new URL(requestOrigin);
+    if (o.protocol !== "http:" && o.protocol !== "https:") return false;
+    if (process.env.NODE_ENV !== "production") {
+      return isDevLocalHostname(o.hostname) && isDevLocalHostname(req.hostname);
+    }
+    return o.origin === req.origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Spotify redirect_uri used in /authorize must be byte-identical in the token POST. */
+function parseSpotifyState(state: string | null): {
+  origin?: string;
+  spotifyRedirectUri?: string;
+} {
+  if (!state) return {};
+  try {
+    return JSON.parse(decodeURIComponent(state)) as {
+      origin?: string;
+      spotifyRedirectUri?: string;
+    };
+  } catch {
+    return {};
+  }
+}
+
+function isAllowedSpotifyTokenRedirectUri(
+  redirectUri: string,
+  requestOrigin: string
+): boolean {
+  try {
+    const u = new URL(redirectUri);
+    if (u.pathname !== "/api/auth/spotify/callback" || u.search || u.hash) {
+      return false;
+    }
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const req = new URL(requestOrigin);
+    if (process.env.NODE_ENV !== "production") {
+      return (
+        isDevLocalHostname(u.hostname) &&
+        isDevLocalHostname(req.hostname) &&
+        u.port === req.port
+      );
+    }
+    return u.origin === req.origin;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
   const state = searchParams.get("state");
-  
-  // Get the original origin from state to redirect back to the correct domain
-  // This is important because Spotify requires 127.0.0.1, but user might be on localhost
+
+  const stateData = parseSpotifyState(state);
+
+  // Where to send the user after success (browser page they started from)
   let redirectOrigin = request.nextUrl.origin;
-  if (state) {
-    try {
-      const stateData = JSON.parse(decodeURIComponent(state));
-      if (stateData.origin) {
-        redirectOrigin = stateData.origin;
-        console.log("Original origin from state:", redirectOrigin);
-      }
-    } catch (e) {
-      // State might not be JSON, ignore
-      console.log("State is not JSON, using current origin");
-    }
+  if (stateData.origin && allowedSpotifyReturnOrigin(stateData.origin, request.nextUrl.origin)) {
+    redirectOrigin = stateData.origin;
   }
 
   // Handle OAuth errors
@@ -38,15 +89,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Spotify requires 127.0.0.1 instead of localhost
-    const redirectUri = request.nextUrl.origin.includes('localhost')
-      ? request.nextUrl.origin.replace('localhost', '127.0.0.1') + '/api/auth/spotify/callback'
-      : `${request.nextUrl.origin}/api/auth/spotify/callback`;
-    
-    console.log("Spotify callback - redirect URI:", redirectUri);
-    console.log("Spotify callback - code received:", code ? "yes" : "no");
-    
-    // Exchange authorization code for access token
+    // Must exactly match redirect_uri in /authorize (Spotify compares to the issued code).
+    const fallbackRedirectUri = `${request.nextUrl.origin}/api/auth/spotify/callback`;
+    const redirectUri =
+      stateData.spotifyRedirectUri &&
+      isAllowedSpotifyTokenRedirectUri(stateData.spotifyRedirectUri, request.nextUrl.origin)
+        ? stateData.spotifyRedirectUri
+        : fallbackRedirectUri;
     const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
@@ -72,7 +121,6 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json();
-    console.log("Spotify token received:", { hasAccessToken: !!tokenData.access_token, hasRefreshToken: !!tokenData.refresh_token });
     
     // Store token in cookie
     const cookieStore = await cookies();
@@ -100,30 +148,22 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    console.log("Setting cookie with options:", cookieOptions);
     cookieStore.set("spotify_token", JSON.stringify(tokenPayload), cookieOptions);
-    
-    console.log("Spotify token stored in cookie");
-    console.log("Redirect origin:", redirectOrigin);
-    console.log("Request origin:", request.nextUrl.origin);
-    console.log("Token payload:", { hasAccessToken: !!tokenPayload.accessToken, hasRefreshToken: !!tokenPayload.refreshToken });
 
-    // Always pass token in URL as fallback (in case cookie doesn't work)
-    // This ensures token is stored even if cookie fails
+    // URL token fallback if cookie is blocked; avoid logging token contents
     const tokenJson = JSON.stringify(tokenPayload);
     const tokenParam = `&token=${encodeURIComponent(tokenJson)}`;
-    console.log("Token param length:", tokenParam.length);
-    console.log("Token param preview:", tokenParam.substring(0, 100) + "...");
-    
-    // Redirect back to transfer page with success
-    // Use the original origin (localhost) if user was on localhost, otherwise use current origin
     const redirectPath = `/transfer?auth=success&platform=spotify${tokenParam}`;
-    const finalRedirectUrl = redirectOrigin.includes('localhost') && request.nextUrl.origin.includes('127.0.0.1')
-      ? new URL(redirectPath, redirectOrigin)
-      : new URL(redirectPath, request.url);
-    
-    console.log("Redirecting to:", finalRedirectUrl.toString().substring(0, 200) + "...");
-    console.log("Full redirect URL length:", finalRedirectUrl.toString().length);
+
+    const useStateOrigin =
+      redirectOrigin !== request.nextUrl.origin &&
+      allowedSpotifyReturnOrigin(redirectOrigin, request.nextUrl.origin);
+
+    const finalRedirectUrl = new URL(
+      redirectPath,
+      useStateOrigin ? redirectOrigin : request.url
+    );
+
     return NextResponse.redirect(finalRedirectUrl);
   } catch (error) {
     console.error("Spotify OAuth callback error:", error);

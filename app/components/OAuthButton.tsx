@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { storeToken } from "../../lib/token-storage";
+import { spotifyOAuthRedirectUri } from "../../lib/spotify-oauth-redirect";
 
 type Platform = "youtube" | "spotify" | "apple" | "amazon";
 
@@ -25,15 +26,8 @@ export default function OAuthButton({ platform, platformName, logo, isConnected,
     const hasAppleKey = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID && process.env.NEXT_PUBLIC_APPLE_CLIENT_ID !== 'YOUR_CLIENT_ID';
     const hasAmazonKey = process.env.NEXT_PUBLIC_AMAZON_CLIENT_ID && process.env.NEXT_PUBLIC_AMAZON_CLIENT_ID !== 'YOUR_CLIENT_ID';
     
-    // Helper function to get redirect URI - Spotify requires 127.0.0.1 instead of localhost
-    const getRedirectUri = (path: string, use127: boolean = false) => {
-      let origin = window.location.origin;
-      // Spotify doesn't allow localhost - must use 127.0.0.1
-      if (use127 && origin.includes('localhost')) {
-        origin = origin.replace('localhost', '127.0.0.1');
-      }
-      return origin + path;
-    };
+    // Spotify: use loopback IP in redirect_uri (http://localhost is rejected as insecure).
+    const getRedirectUri = (path: string) => window.location.origin + path;
     
     // OAuth URLs for each platform
     const oauthUrls: Record<Platform, string> = {
@@ -43,12 +37,15 @@ export default function OAuthButton({ platform, platformName, logo, isConnected,
       spotify: hasSpotifyKey
         ? (() => {
             const originalOrigin = window.location.origin;
-            const redirectUri = getRedirectUri('/api/auth/spotify/callback', true);
+            const redirectUri = spotifyOAuthRedirectUri(originalOrigin);
             // Include original origin in state so callback can redirect back to correct domain
-            const state = encodeURIComponent(JSON.stringify({ origin: originalOrigin }));
+            const state = encodeURIComponent(
+              JSON.stringify({
+                origin: originalOrigin,
+                spotifyRedirectUri: redirectUri,
+              })
+            );
             const spotifyUrl = `https://accounts.spotify.com/authorize?client_id=${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent('playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private')}`;
-            console.log("Spotify OAuth URL:", spotifyUrl);
-            console.log("Redirect URI:", redirectUri);
             return spotifyUrl;
           })()
         : '#',

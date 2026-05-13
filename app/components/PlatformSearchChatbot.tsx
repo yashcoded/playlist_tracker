@@ -14,6 +14,8 @@ interface PlatformSearchChatbotProps {
   isOpen: boolean;
   onClose: () => void;
   originalTrack: Track;
+  /** Stable row id (playlist index) so opening search for another row resets state even when track id/title match. */
+  rowContextKey?: number;
   platform: "youtube" | "spotify" | "apple" | "amazon";
   accessToken?: string;
   onTrackSelected: (track: Track) => void;
@@ -23,6 +25,7 @@ export default function PlatformSearchChatbot({
   isOpen,
   onClose,
   originalTrack,
+  rowContextKey,
   platform,
   accessToken,
   onTrackSelected
@@ -38,6 +41,26 @@ export default function PlatformSearchChatbot({
   ]);
   
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const seed = `${originalTrack.title} ${originalTrack.artist}`.trim();
+    setSearchQuery(seed);
+    setSearchResults([]);
+    setChatMessages([
+      {
+        type: 'bot',
+        message: `I'll help you find "${originalTrack.title}" by ${originalTrack.artist} on ${platform}. Try searching with different keywords or variations of the song name.`
+      }
+    ]);
+  }, [isOpen, rowContextKey, originalTrack.title, originalTrack.artist, platform]);
+
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -48,7 +71,7 @@ export default function PlatformSearchChatbot({
   // Removed auto-scroll behavior to prevent CSS conflicts and unwanted scrolling
   // Users can manually scroll if needed
 
-  const searchSpotifyReal = async (query: string): Promise<SearchResult[]> => {
+  const searchSpotifyReal = async (query: string, signal: AbortSignal): Promise<SearchResult[]> => {
     try {
       console.log(`🔍 Real Spotify search for: "${query}"`);
       
@@ -57,9 +80,10 @@ export default function PlatformSearchChatbot({
         return [];
       }
 
-      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
+      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query.trim())}&type=track&limit=10`;
       
       const response = await fetch(searchUrl, {
+        signal,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
@@ -67,11 +91,25 @@ export default function PlatformSearchChatbot({
       });
 
       if (!response.ok) {
+        const body = await response.text();
+        let detail = body;
+        try {
+          const j = JSON.parse(body) as { error?: { message?: string } };
+          if (j?.error?.message) detail = j.error.message;
+        } catch {
+          /* keep raw */
+        }
+
         if (response.status === 401) {
           console.error('Spotify access token expired or invalid');
           throw new Error('Spotify authentication expired. Please reconnect.');
         }
-        throw new Error(`Spotify search failed: ${response.status} ${response.statusText}`);
+        if (response.status === 403) {
+          throw new Error(
+            `Spotify blocked search (403): ${detail}. In Development mode, add your Spotify account under User management at developer.spotify.com/dashboard, or request Extended Quota for the app.`
+          );
+        }
+        throw new Error(`Spotify search failed (${response.status}): ${detail}`);
       }
 
       const data = await response.json();
@@ -88,7 +126,7 @@ export default function PlatformSearchChatbot({
         title: track.name, // Real song title
         artist: track.artists.map((artist: any) => artist.name).join(', '), // Real artist names
         album: track.album?.name || '', // Real album name
-        duration: track.duration_ms, // Real duration in milliseconds
+        duration: Math.floor((track.duration_ms ?? 0) / 1000), // seconds (matches playlist Track)
         artworkUrl: track.album?.images?.[0]?.url || '', // Real album artwork
         platform: 'spotify' as any,
         originalId: track.id,
@@ -97,6 +135,9 @@ export default function PlatformSearchChatbot({
         matchType: 'search_result' as const
       }));
     } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        return [];
+      }
       console.error('Real Spotify search error:', error);
       
       // Show error message to user
@@ -185,6 +226,11 @@ export default function PlatformSearchChatbot({
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    const { signal } = controller;
+
     setIsSearching(true);
     
     // Add user message
@@ -200,7 +246,7 @@ export default function PlatformSearchChatbot({
       // Use real API for Spotify if access token is available
       if (platform === 'spotify' && accessToken) {
         console.log('🎵 Using real Spotify API for manual search');
-        results = await searchSpotifyReal(searchQuery);
+        results = await searchSpotifyReal(searchQuery, signal);
         console.log(`📊 Real Spotify search returned ${results.length} results`);
       } else if (platform === 'spotify' && !accessToken) {
         console.warn('⚠️ No Spotify access token - user needs to authenticate first');
@@ -216,6 +262,8 @@ export default function PlatformSearchChatbot({
         results = await mockPlatformSearch(searchQuery, platform);
         console.log(`📊 Mock search returned ${results.length} results`);
       }
+
+      if (signal.aborted) return;
       
       setSearchResults(results);
       
@@ -225,16 +273,21 @@ export default function PlatformSearchChatbot({
         message: `Found ${results.length} results for "${searchQuery}" on ${platformNames[platform]}. Click on any result to preview and select it.` 
       }]);
     } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        return;
+      }
       setChatMessages(prev => [...prev, { 
         type: 'bot', 
         message: `Sorry, I couldn't search ${platform} right now. Please try again or try a different search term.` 
       }]);
     } finally {
-      setIsSearching(false);
+      if (!signal.aborted) {
+        setIsSearching(false);
+      }
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSearch();
@@ -374,7 +427,7 @@ export default function PlatformSearchChatbot({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder={`Search for "${originalTrack.title}" on ${platformNames[platform]}...`}
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
               disabled={isSearching}
